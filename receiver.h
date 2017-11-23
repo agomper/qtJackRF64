@@ -10,6 +10,7 @@ class Receiver : public JackClient, public NetClient, public SoundFile{
     int underflowCounter;
     int overflowCounter;
     int lostNetworkPackages;
+    int indexControl;
     pthread_t netcomThread;
 public:
     Receiver();
@@ -29,6 +30,9 @@ public:
     void setLostNetworkPackages(int value);
     int getOutputMode() const;
     void setOutputMode(int value);
+    int getIndexControl() const;
+    void setIndexControl(int value);
+    void setUnderflowCounter(int value);
 };
 
 #endif // RECEIVER_H

@@ -35,6 +35,21 @@ void Receiver::setOutputMode(int value)
     outputMode = value;
 }
 
+int Receiver::getIndexControl() const
+{
+    return indexControl;
+}
+
+void Receiver::setIndexControl(int value)
+{
+    indexControl = value;
+}
+
+void Receiver::setUnderflowCounter(int value)
+{
+    underflowCounter = value;
+}
+
 Receiver::Receiver() {
     srPortNumber = 57160;
 
@@ -45,6 +60,7 @@ Receiver::Receiver() {
     outputMode = 0;
     underflowCounter = 0;
     overflowCounter = 0;
+    indexControl = 0;
 }
 
 int Receiver::getSrPortNumber() const
@@ -66,6 +82,7 @@ int Receiver::set_callback_method() {
     return 0;
 }
 
+/**********************JACK RECEIVER CALLBACK********************/
 int Receiver::callback_method(jack_nframes_t nframes) {
     //Nframes = Frames/Period = = Buffer de JACK = 1024
     if(nframes >= jackBufferFrames) {
@@ -121,7 +138,7 @@ int Receiver::callback_method(jack_nframes_t nframes) {
             }
 
         }
-        if (outputMode == 2 || outputMode == 3)
+        if (outputMode == 1 || outputMode == 2)
             sndfd.write(localFrame, channels*nframes);
     }
     return 0;
@@ -169,26 +186,31 @@ void Receiver::receiver_socket_test()
     /* never exits */
 }
 
-//RECEIVER
-// Read data from UDP port and write to ring buffer.
+/******************RECEIVER THREAD*********************************/
 void *Receiver::receiver_thread(void *arg) {
     Receiver *receiver = (Receiver *) arg;
     networkPacket p;                       //Paquete P = Network
-    uint32_t nextPacket = 0;
 
-    while(1) {
+    while(receiver->getDeactivateSignal() == false) {
         //Llama al metodo para recibir 1 paquete de P.
         receiver->packet_recvfrom(&p, receiver->getSrSocketFD());
 
         //Comprobaciones del indice y numero de canales
-        if((p.index != nextPacket) && (nextPacket != 0)) {
-            cout<<"Receiver: Out or order package arrival. Expected: "<<nextPacket
-               <<"  Arrived: "<<p.index<<endl;
+        if(p.index != receiver->getIndexControl()) {
+            if (receiver->getIndexControl() == 0) {
+                receiver->setUnderflowCounter(0);
+                receiver->setLostNetworkPackages(0);
+            }
+            else {
+                cout<<"Receiver: Out or order package arrival. Expected: "
+                   <<receiver->getIndexControl()<<"  Arrived: "<<p.index<<endl;
 
-            int auxLNP = p.index - nextPacket;
-            receiver->setLostNetworkPackages(receiver->getLostNetworkPackages()
-                                             +auxLNP);
+                int auxLNP = p.index - receiver->getIndexControl();
+                receiver->setLostNetworkPackages(receiver->getLostNetworkPackages()
+                                                 +auxLNP);
+            }
         }
+
         if(p.channels != receiver->getChannels()) {
             cout<<"Receiver: Number of channels mismatch. Expected: "
                <<receiver->getChannels()<<"  Arrived: "<<p.channels<<endl;
@@ -206,13 +228,15 @@ void *Receiver::receiver_thread(void *arg) {
         }
 
         //Actualiza el indice del paquete que debe llegar.
-        nextPacket = p.index + 1;
+        receiver->setIndexControl(p.index + 1);
     }
+
+    //cout<<"Hilo terminado"<<endl;
 }
 
 void Receiver::finish()
 {
-    cout<<"Cerrando y liberando. \n";
+    //cout<<"Cerrando y liberando. \n"<<endl;
     close(srSocketFD);
     jack_ringbuffer_free(ringBuffer);
     jack_client_close(clientfd);

@@ -14,7 +14,7 @@ typedef struct {
   uint32_t index;                //Identificador del paquete
   uint16_t channels;             //Num channels
   uint16_t frames;               //Num frames
-  uint8_t data[1024];            //Payload max = 1408 = 352 * 4
+  uint8_t data[1408];            //Payload max = 1408 = 352 * 4
 } networkPacket;
 
 class NetClient {
@@ -25,6 +25,7 @@ protected:
     int fpgaSocketFD;
     int payloadSamples;
     int payloadBytes;
+    bool deactivateSignal;
 public:
     NetClient();
     int getPayloadBytes() const;
@@ -41,6 +42,8 @@ public:
     int xrecv(int fd, void *buf, size_t n, int flags);
     sockaddr_in getSrISAddress();
     void init_payload(int nSamples);
+    bool getDeactivateSignal() const;
+    void setDeactivateSignal(bool value);
 };
 
 #endif // NETCLIENT_H

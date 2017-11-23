@@ -1,15 +1,8 @@
 #include "window.h"
 #include "ui_window.h"
 #include "receiver.h"
-#include "sender.h"
 
 Receiver recvObj;
-
-struct argStruct {
-    Receiver *auxRecvObj;
-    Ui::Window *auxUi;
-};
-
 
 Window::Window(QWidget *parent) :
     QMainWindow(parent),
@@ -17,6 +10,10 @@ Window::Window(QWidget *parent) :
 {
     deactivate =  false;
     ui->setupUi(this);
+    ui->createButton_2->setEnabled(false);
+    ui->createButton->setEnabled(false);
+    ui->activateButton->setEnabled(false);
+    ui->deactivateButton->setEnabled(false);
 }
 
 Window::~Window()
@@ -56,6 +53,8 @@ int Window::on_connectButton_clicked() {
     ui->messagesPanel->appendPlainText("Package audio payload (Bytes) :"+auxMessage);
 
     ui->connectButton->setEnabled(false);
+    ui->socketPort->setEnabled(false);
+    ui->spinBoxPayload->setEnabled(false);
     return 1;
 }
 
@@ -63,6 +62,8 @@ int Window::on_connectButton_clicked() {
 int Window::on_createButton_clicked()
 {
     bool createFileResult;
+
+    recvObj.setChannels(ui->fileChannels->text().toInt());
 
     recvObj.setSoundFileName(ui->fileName->text().toStdString());
     recvObj.setFileSampleRate(ui->fileSampleRate->text().toInt());
@@ -73,7 +74,7 @@ int Window::on_createButton_clicked()
     ui->messagesPanel->appendPlainText("Creating file with name: "
                                        +localFileName);
 
-    createFileResult = recvObj.create_file(SF_FORMAT_RF64 | SF_FORMAT_PCM_24);
+    createFileResult = recvObj.create_file(SF_FORMAT_WAV | SF_FORMAT_PCM_24);
 
     if (createFileResult == true) {
         ui->messagesPanel->appendPlainText("File created.");
@@ -89,29 +90,14 @@ int Window::on_createButton_clicked()
     return 1;
 }
 
-void *update_receiver_counters(void *arg) {
-    argStruct parameters = *((argStruct*) arg);
-    Receiver *receiver = parameters.auxRecvObj;
-
-    while(1) {
-        QString counter1 = QString::number(receiver->getLostNetworkPackages());
-        parameters.auxUi->LNPCounter->setText(counter1);
-        QString counter2 = QString::number(receiver->getOverflowCounter());
-        parameters.auxUi->overflowCounter->setText(counter2);
-        QString counter3 = QString::number(receiver->getUnderflowCounter());
-        parameters.auxUi->underflowCounter->setText(counter3);
-    }
-}
-
 int Window::on_activateButton_clicked() {
-    pthread_t netcomThread, netcomThread2;
+    pthread_t netcomThread;
+    QString counter;
     int threadCheck;
 
-    argStruct argStructObj;
-    argStructObj.auxRecvObj = &recvObj;
-    argStructObj.auxUi = ui;
-
     recvObj.setOutputMode(ui->comboBox->currentIndex());
+    ui->activateButton->setEnabled(false);
+    ui->deactivateButton->setEnabled(true);
 
     if (recvObj.open_jack_client("receiver_client") == true) {
         ui->messagesPanel->appendPlainText("JACK client opened.");
@@ -132,34 +118,36 @@ int Window::on_activateButton_clicked() {
 //    work be done, passing @a arg as the second argument.
     recvObj.set_callback_method();
     ui->messagesPanel->appendPlainText("JACK client: Assigned callback function.");
-    recvObj.jack_port_make_standard(recvObj.getChannels());
+    recvObj.jack_port_make_standard(2);
     ui->messagesPanel->appendPlainText("JACK client: Ports created.");
     recvObj.jack_client_activate(recvObj.getClientfd());
     ui->messagesPanel->appendPlainText("JACK client: Activated.");
 
 
-    ui->messagesPanel->appendPlainText("Creating receiver threads.");
+    ui->messagesPanel->appendPlainText("Creating receiver thread.");
 
     threadCheck = pthread_create(&netcomThread,
                                  NULL, recvObj.receiver_thread, &recvObj);
     if (threadCheck != 0)
         ui->messagesPanel->appendPlainText("Receiver 1st thread error.");
 
-    threadCheck = pthread_create(&netcomThread2,
-                                 NULL, update_receiver_counters, &argStructObj);
-    if (threadCheck != 0)
-        ui->messagesPanel->appendPlainText("Receiver 2nd thread error.");
 
     ui->messagesPanel->appendPlainText("Working...");
 
     while (deactivate == false) {
+        counter = QString::number(recvObj.getLostNetworkPackages());
+        ui->LNPCounter->setText(counter);
+        counter = QString::number(recvObj.getOverflowCounter());
+        ui->overflowCounter->setText(counter);
+        counter = QString::number(recvObj.getUnderflowCounter());
+        ui->underflowCounter->setText(counter);
+        counter = QString::number(recvObj.getIndexControl());
+        ui->labelIndexControl->setText(counter);
+
         QCoreApplication::processEvents();
     }
 
-//    pthread_join(netcomThread, NULL);
-//    pthread_join(netcomThread2, NULL);
-    pthread_cancel(netcomThread);
-    pthread_cancel(netcomThread2);
+    pthread_join(netcomThread, NULL);
     recvObj.finish();
 
     ui->messagesPanel->appendPlainText("Client deactivated. Please, restart"
@@ -169,12 +157,11 @@ int Window::on_activateButton_clicked() {
 }
 
 
-
-
-
 void Window::on_deactivateButton_clicked()
 {
     deactivate = true;
+    recvObj.setDeactivateSignal(true);
+    ui->deactivateButton->setEnabled(false);
 }
 
 void Window::on_createButton_2_clicked()
@@ -182,4 +169,43 @@ void Window::on_createButton_2_clicked()
     recvObj.setChannels(ui->fileChannels->text().toInt());
     ui->messagesPanel->appendPlainText("Number of channels: "
                                        +ui->fileChannels->text());
+    ui->createButton_2->setEnabled(false);
+    ui->fileChannels->setEnabled(false);
+}
+
+void Window::on_comboBox_currentIndexChanged(int index)
+{
+    if (index == 0) { //Loudspeakers;
+        ui->createButton_2->setEnabled(true);
+        ui->fileChannels->setEnabled(true);
+        ui->fileSampleRate->setEnabled(false);
+        ui->fileName->setEnabled(false);
+        ui->createButton->setEnabled(false);
+        ui->activateButton->setEnabled(true);
+    }
+    else if (index == 1) { //File
+        ui->fileChannels->setEnabled(true);
+        ui->fileSampleRate->setEnabled(true);
+        ui->fileName->setEnabled(true);
+        ui->createButton->setEnabled(true);
+        ui->createButton_2->setEnabled(false);
+        ui->activateButton->setEnabled(true);
+    }
+    else if (index == 2) { //Both
+        ui->fileChannels->setEnabled(true);
+        ui->fileSampleRate->setEnabled(true);
+        ui->fileName->setEnabled(true);
+        ui->createButton->setEnabled(true);
+        ui->createButton_2->setEnabled(false);
+        ui->activateButton->setEnabled(true);
+    }
+    else if (index == 3) { //Nothing
+        ui->fileChannels->setEnabled(false);
+        ui->fileSampleRate->setEnabled(false);
+        ui->fileName->setEnabled(false);
+        ui->createButton->setEnabled(false);
+        ui->createButton_2->setEnabled(false);
+        ui->activateButton->setEnabled(false);
+    }
+
 }

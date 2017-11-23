@@ -27,6 +27,8 @@ private slots:
 
     void on_createButton_2_clicked();
 
+    void on_comboBox_currentIndexChanged(int index);
+
 private:
     Ui::Window *ui;
 };

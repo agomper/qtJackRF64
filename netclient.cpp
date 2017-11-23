@@ -1,5 +1,9 @@
 #include "netclient.h"
 
+NetClient::NetClient() {
+    deactivateSignal = false;
+}
+
 int NetClient::getSrSocketFD() const
 {
     return srSocketFD;
@@ -19,10 +23,6 @@ void NetClient::init_payload(int nSamples)
 int NetClient::getFpgaSocketFD() const
 {
     return fpgaSocketFD;
-}
-
-NetClient::NetClient() {
-
 }
 
 int NetClient::getPayloadBytes() const
@@ -109,4 +109,14 @@ int NetClient::xrecv(int fd, void *buf, size_t n, int flags)
     exit(1);
   }
   return err;
+}
+
+bool NetClient::getDeactivateSignal() const
+{
+    return deactivateSignal;
+}
+
+void NetClient::setDeactivateSignal(bool value)
+{
+    deactivateSignal = value;
 }
