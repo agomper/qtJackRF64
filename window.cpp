@@ -63,11 +63,11 @@ int Window::on_createButton_clicked()
 {
     bool createFileResult;
 
-    recvObj.setChannels(ui->fileChannels->text().toInt());
+    recvObj.setChannels(ui->spinBoxChannels->value());
 
     recvObj.setSoundFileName(ui->fileName->text().toStdString());
     recvObj.setFileSampleRate(ui->fileSampleRate->text().toInt());
-    recvObj.setFileNChannels(ui->fileChannels->text().toInt());
+    recvObj.setFileNChannels(ui->spinBoxChannels->value());
     QString localFileName = QString::fromStdString(recvObj.getSoundFileName());
 
 
@@ -166,25 +166,25 @@ void Window::on_deactivateButton_clicked()
 
 void Window::on_createButton_2_clicked()
 {
-    recvObj.setChannels(ui->fileChannels->text().toInt());
+    recvObj.setChannels(ui->spinBoxChannels->value());
     ui->messagesPanel->appendPlainText("Number of channels: "
-                                       +ui->fileChannels->text());
+                                       +ui->spinBoxChannels->text());
     ui->createButton_2->setEnabled(false);
-    ui->fileChannels->setEnabled(false);
+    ui->spinBoxChannels->setEnabled(false);
 }
 
 void Window::on_comboBox_currentIndexChanged(int index)
 {
     if (index == 0) { //Loudspeakers;
         ui->createButton_2->setEnabled(true);
-        ui->fileChannels->setEnabled(true);
+        ui->spinBoxChannels->setEnabled(true);
         ui->fileSampleRate->setEnabled(false);
         ui->fileName->setEnabled(false);
         ui->createButton->setEnabled(false);
         ui->activateButton->setEnabled(true);
     }
     else if (index == 1) { //File
-        ui->fileChannels->setEnabled(true);
+        ui->spinBoxChannels->setEnabled(true);
         ui->fileSampleRate->setEnabled(true);
         ui->fileName->setEnabled(true);
         ui->createButton->setEnabled(true);
@@ -192,7 +192,7 @@ void Window::on_comboBox_currentIndexChanged(int index)
         ui->activateButton->setEnabled(true);
     }
     else if (index == 2) { //Both
-        ui->fileChannels->setEnabled(true);
+        ui->spinBoxChannels->setEnabled(true);
         ui->fileSampleRate->setEnabled(true);
         ui->fileName->setEnabled(true);
         ui->createButton->setEnabled(true);
@@ -200,7 +200,7 @@ void Window::on_comboBox_currentIndexChanged(int index)
         ui->activateButton->setEnabled(true);
     }
     else if (index == 3) { //Nothing
-        ui->fileChannels->setEnabled(false);
+        ui->spinBoxChannels->setEnabled(false);
         ui->fileSampleRate->setEnabled(false);
         ui->fileName->setEnabled(false);
         ui->createButton->setEnabled(false);
